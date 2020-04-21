@@ -5,7 +5,7 @@
   "main": "index.js",
   "types": "index.d.ts",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "jest",
     "build": "tsc"
   },
   "keywords": [
@@ -13,12 +13,18 @@
     "sgbi",
     "png",
     "image",
+    "converter",
     "asynchronous"
   ],
   "author": "Andrey",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/an3park/async-cgbi-to-png.git"
+  },
   "license": "MIT",
   "devDependencies": {
     "@types/node": "^13.13.1",
+    "jest": "^25.4.0",
     "typescript": "^3.8.3"
   },
   "dependencies": {

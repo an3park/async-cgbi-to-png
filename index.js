@@ -1,1 +1,1 @@
-module.exports = require('./dist/sgbi')
+module.exports = require('./dist/cgbi')
