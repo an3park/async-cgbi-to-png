@@ -5,7 +5,7 @@ const ApplePNG = fs.readFileSync('test/cgbi.png')
 const NonPNG = fs.readFileSync('test/cgbi.test.js')
 const DefaultPng = fs.readFileSync('test/png.png')
 
-test('non png shood return error callback', done => {
+test('non png should return error callback', done => {
   convert(NonPNG, (err, png) => {
     expect(err).toBeInstanceOf(Error)
     expect(png).toBe(undefined)
@@ -13,7 +13,7 @@ test('non png shood return error callback', done => {
   })
 })
 
-test('shood convert cgbi to png', done => {
+test('should convert cgbi to png', done => {
   convert(ApplePNG, (err, png) => {
     expect(err).toBeNull()
     expect(png).toBeInstanceOf(Buffer)
@@ -22,7 +22,7 @@ test('shood convert cgbi to png', done => {
   })
 })
 
-test('shood return default png himself', done => {
+test('should return default png himself', done => {
   convert(DefaultPng, (err, png) => {
     expect(err).toBeNull()
     expect(png).toBeInstanceOf(Buffer)
