@@ -1,13 +1,17 @@
 "use strict";
-const zlib = require('zlib');
-const crc = require('crc');
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const zlib_1 = __importDefault(require("zlib"));
+const crc_1 = require("crc");
 const PNG_HEADER = '89504e470d0a1a0a';
 Buffer.createUInt32BE = function (value) {
     const buf = this.alloc(4);
     buf.writeUInt32BE(value);
     return buf;
 };
-module.exports = function (cgbi, callback) {
+function default_1(cgbi, callback) {
     if (cgbi.slice(0, 8).toString('hex') !== PNG_HEADER) {
         callback(new Error('not png'));
         return;
@@ -43,7 +47,7 @@ module.exports = function (cgbi, callback) {
             continue;
         }
         else if (type === 'IEND' && issgbi) {
-            zlib.inflateRaw(idatCgbiData, (err, uncompressed) => {
+            zlib_1.default.inflateRaw(idatCgbiData, (err, uncompressed) => {
                 if (err) {
                     callback(err);
                     return;
@@ -61,13 +65,13 @@ module.exports = function (cgbi, callback) {
                         i += 4;
                     }
                 }
-                zlib.deflate(newData, (err, idatData) => {
+                zlib_1.default.deflate(newData, (err, idatData) => {
                     if (err) {
                         callback(err);
                         return;
                     }
-                    idatCRC = crc.crc32('IDAT');
-                    idatCRC = crc.crc32(idatData, idatCRC);
+                    idatCRC = crc_1.crc32('IDAT');
+                    idatCRC = crc_1.crc32(idatData, idatCRC);
                     idatCRC = (idatCRC + 0x100000000) % 0x100000000;
                     result = Buffer.concat([
                         result,
@@ -84,6 +88,13 @@ module.exports = function (cgbi, callback) {
             });
             continue;
         }
-        result = Buffer.concat([result, Buffer.createUInt32BE(len), Buffer.from(type), data, chsum]);
+        result = Buffer.concat([
+            result,
+            Buffer.createUInt32BE(len),
+            Buffer.from(type),
+            data,
+            chsum
+        ]);
     }
-};
+}
+exports.default = default_1;

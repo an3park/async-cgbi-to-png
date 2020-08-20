@@ -1,12 +1,12 @@
-const convert = require('../index')
-const fs = require('fs')
+import convert from '..'
+import fs from 'fs'
 
-const ApplePNG = fs.readFileSync('test/cgbi.png')
-const NonPNG = fs.readFileSync('test/cgbi.test.js')
-const DefaultPng = fs.readFileSync('test/png.png')
+const ApplePNG = fs.readFileSync(__dirname + '/cgbi.png')
+const NonPNG = fs.readFileSync(__dirname + '/cgbi.test.ts')
+const DefaultPng = fs.readFileSync(__dirname + '/png.png')
 
 test('non png should return error callback', done => {
-  convert(NonPNG, (err, png) => {
+  convert(NonPNG, (err: any, png: any) => {
     expect(err).toBeInstanceOf(Error)
     expect(png).toBe(undefined)
     done()
@@ -14,7 +14,7 @@ test('non png should return error callback', done => {
 })
 
 test('should convert cgbi to png', done => {
-  convert(ApplePNG, (err, png) => {
+  convert(ApplePNG, (err: any, png: any) => {
     expect(err).toBeNull()
     expect(png).toBeInstanceOf(Buffer)
     expect(png).toEqual(DefaultPng)
@@ -23,7 +23,7 @@ test('should convert cgbi to png', done => {
 })
 
 test('should return default png himself', done => {
-  convert(DefaultPng, (err, png) => {
+  convert(DefaultPng, (err: any, png: any) => {
     expect(err).toBeNull()
     expect(png).toBeInstanceOf(Buffer)
     expect(png).toEqual(DefaultPng)

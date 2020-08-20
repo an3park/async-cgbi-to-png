@@ -1,10 +1,13 @@
-const zlib = require('zlib')
-const crc = require('crc')
-const PNG_HEADER = '89504e470d0a1a0a'
+import zlib from 'zlib'
+import { crc32 } from 'crc'
 
-interface Function {
-  createUInt32BE(value: number): Buffer
+declare global {
+  namespace Buffer {
+    function createUInt32BE(value: number): Buffer
+  }
 }
+
+const PNG_HEADER = '89504e470d0a1a0a'
 
 Buffer.createUInt32BE = function (value) {
   const buf = this.alloc(4)
@@ -12,7 +15,10 @@ Buffer.createUInt32BE = function (value) {
   return buf
 }
 
-module.exports = function (cgbi: Buffer, callback: (err: Error | null, data?: Buffer) => void) {
+export default function (
+  cgbi: Buffer,
+  callback: (err: Error | null, data?: Buffer) => void
+) {
   if (cgbi.slice(0, 8).toString('hex') !== PNG_HEADER) {
     callback(new Error('not png'))
     return
@@ -31,7 +37,7 @@ module.exports = function (cgbi: Buffer, callback: (err: Error | null, data?: Bu
     k: number,
     newData: Buffer,
     idatCgbiData: Buffer = Buffer.alloc(0),
-    result: Buffer = Buffer.from(PNG_HEADER, 'hex')
+    result = Buffer.from(PNG_HEADER, 'hex')
   const read = (n: number): Buffer => {
     offset += n
     return cgbi.slice(offset - n, offset)
@@ -58,7 +64,7 @@ module.exports = function (cgbi: Buffer, callback: (err: Error | null, data?: Bu
     } else if (type === 'iDOT') {
       continue
     } else if (type === 'IEND' && issgbi) {
-      zlib.inflateRaw(idatCgbiData, (err: Error, uncompressed: Buffer) => {
+      zlib.inflateRaw(idatCgbiData, (err, uncompressed) => {
         if (err) {
           callback(err)
           return
@@ -76,13 +82,13 @@ module.exports = function (cgbi: Buffer, callback: (err: Error | null, data?: Bu
             i += 4
           }
         }
-        zlib.deflate(newData, (err: Error, idatData: Buffer) => {
+        zlib.deflate(newData, (err, idatData) => {
           if (err) {
             callback(err)
             return
           }
-          idatCRC = crc.crc32('IDAT')
-          idatCRC = crc.crc32(idatData, idatCRC)
+          idatCRC = crc32('IDAT')
+          idatCRC = crc32(idatData, idatCRC)
           idatCRC = (idatCRC + 0x100000000) % 0x100000000
           result = Buffer.concat([
             result,
@@ -99,6 +105,12 @@ module.exports = function (cgbi: Buffer, callback: (err: Error | null, data?: Bu
       })
       continue
     }
-    result = Buffer.concat([result, Buffer.createUInt32BE(len), Buffer.from(type), data, chsum])
+    result = Buffer.concat([
+      result,
+      Buffer.createUInt32BE(len),
+      Buffer.from(type),
+      data,
+      chsum
+    ])
   }
 }
