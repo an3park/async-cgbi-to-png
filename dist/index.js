@@ -3,6 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.convert = void 0;
 const zlib_1 = __importDefault(require("zlib"));
 const crc_1 = require("crc");
 const PNG_HEADER = '89504e470d0a1a0a';
@@ -11,7 +12,7 @@ Buffer.createUInt32BE = function (value) {
     buf.writeUInt32BE(value);
     return buf;
 };
-function default_1(cgbi, callback) {
+function convert(cgbi, callback) {
     if (cgbi.slice(0, 8).toString('hex') !== PNG_HEADER) {
         callback(new Error('not png'));
         return;
@@ -97,4 +98,4 @@ function default_1(cgbi, callback) {
         ]);
     }
 }
-exports.default = default_1;
+exports.convert = convert;

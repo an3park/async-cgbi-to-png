@@ -11,14 +11,14 @@ npm install async-cgbi-to-png
 ### Usage
 
 ```js
-const ApplePngConvert = require('async-cgbi-to-png')
+const { convert } = require('async-cgbi-to-png')
 const fs = require('fs')
 
 const ApplePNG = fs.readFileSync('cgbi.png') // return Buffer instance
 
-ApplePngConvert(ApplePNG, (err, resultPng) => {
-  // resultPng is a Buffer
+convert(ApplePNG, (err, resultPng) => {
   if (err) throw err
+  // resultPng is a Buffer
   fs.writeFileSync('result.png', resultPng)
 })
 ```

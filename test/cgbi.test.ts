@@ -1,9 +1,13 @@
-import convert from '..'
+import { convert } from '..'
 import fs from 'fs'
 
 const ApplePNG = fs.readFileSync(__dirname + '/cgbi.png')
 const NonPNG = fs.readFileSync(__dirname + '/cgbi.test.ts')
 const DefaultPng = fs.readFileSync(__dirname + '/png.png')
+
+test('test common js module', () => {
+  expect(require('..').convert).toBe(convert)
+})
 
 test('non png should return error callback', done => {
   convert(NonPNG, (err: any, png: any) => {

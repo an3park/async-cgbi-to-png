@@ -3,4 +3,4 @@ declare global {
         function createUInt32BE(value: number): Buffer;
     }
 }
-export default function (cgbi: Buffer, callback: (err: Error | null, data?: Buffer) => void): void;
+export declare function convert(cgbi: Buffer, callback: (err: Error | null, data?: Buffer) => void): void;

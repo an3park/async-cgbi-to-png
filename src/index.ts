@@ -15,7 +15,7 @@ Buffer.createUInt32BE = function (value) {
   return buf
 }
 
-export default function (
+export function convert(
   cgbi: Buffer,
   callback: (err: Error | null, data?: Buffer) => void
 ) {
