@@ -6,14 +6,8 @@ const asyncInflateRaw = promisify<zlib.InputType, Buffer>(zlib.inflateRaw)
 const asyncDeflate = promisify<zlib.InputType, Buffer>(zlib.deflate)
 const PNG_HEADER = Buffer.from('89504e470d0a1a0a', 'hex')
 
-declare global {
-  namespace Buffer {
-    function createUInt32BE(value: number): Buffer
-  }
-}
-
-Buffer.createUInt32BE = function (value: number) {
-  const buf = this.alloc(4)
+function createUInt32BE(value: number) {
+  const buf = Buffer.alloc(4)
   buf.writeUInt32BE(value)
   return buf
 }
@@ -81,10 +75,10 @@ export const convert: A | B = (cgbi: Buffer, callback?: CallbackType<Buffer>) =>
             idatCRC = crc32(newIdat, idatCRC)
             idatCRC = (idatCRC + 0x100000000) % 0x100000000
             result.push(
-              Buffer.createUInt32BE(newIdat.length),
+              createUInt32BE(newIdat.length),
               Buffer.from('IDAT'),
               newIdat,
-              Buffer.createUInt32BE(idatCRC),
+              createUInt32BE(idatCRC),
               Buffer.alloc(4),
               Buffer.from('IEND'),
               chsum
@@ -108,7 +102,7 @@ export const convert: A | B = (cgbi: Buffer, callback?: CallbackType<Buffer>) =>
           }
 
         default:
-          result.push(Buffer.createUInt32BE(len), Buffer.from(type), data, chsum)
+          result.push(createUInt32BE(len), Buffer.from(type), data, chsum)
           break
       }
     }
