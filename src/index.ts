@@ -1,5 +1,10 @@
 import zlib from 'zlib'
 import { crc32 } from 'crc'
+import { promisify } from 'util'
+
+const asyncInflateRaw = promisify<zlib.InputType, Buffer>(zlib.inflateRaw)
+const asyncDeflate = promisify<zlib.InputType, Buffer>(zlib.deflate)
+const PNG_HEADER = Buffer.from('89504e470d0a1a0a', 'hex')
 
 declare global {
   namespace Buffer {
@@ -7,110 +12,133 @@ declare global {
   }
 }
 
-const PNG_HEADER = '89504e470d0a1a0a'
-
-Buffer.createUInt32BE = function (value) {
+Buffer.createUInt32BE = function (value: number) {
   const buf = this.alloc(4)
   buf.writeUInt32BE(value)
   return buf
 }
 
-export function convert(
-  cgbi: Buffer,
-  callback: (err: Error | null, data?: Buffer) => void
-) {
-  if (cgbi.slice(0, 8).toString('hex') !== PNG_HEADER) {
-    callback(new Error('not png'))
-    return
+class Reader {
+  offset: number = 0
+  constructor(readonly buf: Buffer) {}
+  read(bytes: number): Buffer {
+    this.offset += bytes
+    return this.buf.slice(this.offset - bytes, this.offset)
   }
+}
 
-  let len: number,
-    type: string,
-    data: Buffer,
-    chsum: Buffer,
-    offset: number = 8,
-    issgbi: boolean = false,
-    idatCRC: number,
-    width: number,
-    height: number,
-    j: number,
-    k: number,
-    newData: Buffer,
-    idatCgbiData: Buffer = Buffer.alloc(0),
-    result = Buffer.from(PNG_HEADER, 'hex')
-  const read = (n: number): Buffer => {
-    offset += n
-    return cgbi.slice(offset - n, offset)
-  }
-  while (offset < cgbi.length) {
-    len = read(4).readUInt32BE()
-    type = read(4).toString()
-    data = read(len)
-    chsum = read(4)
-    // console.log(type, len)
-    if (type === 'CgBI') {
-      issgbi = true
-      continue
-    } else if (type === 'IHDR') {
-      if (!issgbi) {
-        callback(null, cgbi)
-        return
-      }
-      width = data.readInt32BE()
-      height = data.slice(4).readInt32BE()
-    } else if (type === 'IDAT' && issgbi) {
-      idatCgbiData = Buffer.concat([idatCgbiData, data])
-      continue
-    } else if (type === 'iDOT') {
-      continue
-    } else if (type === 'IEND' && issgbi) {
-      zlib.inflateRaw(idatCgbiData, (err, uncompressed) => {
-        if (err) {
-          callback(err)
-          return
-        }
-        newData = Buffer.alloc(uncompressed.length)
-        let i = 0
-        for (j = 0; j < height; ++j) {
-          newData[i] = uncompressed[i]
-          i++
-          for (k = 0; k < width; ++k) {
-            newData[i + 0] = uncompressed[i + 2]
-            newData[i + 1] = uncompressed[i + 1]
-            newData[i + 2] = uncompressed[i + 0]
-            newData[i + 3] = uncompressed[i + 3]
-            i += 4
-          }
-        }
-        zlib.deflate(newData, (err, idatData) => {
-          if (err) {
-            callback(err)
-            return
-          }
-          idatCRC = crc32('IDAT')
-          idatCRC = crc32(idatData, idatCRC)
-          idatCRC = (idatCRC + 0x100000000) % 0x100000000
-          result = Buffer.concat([
-            result,
-            Buffer.createUInt32BE(idatData.length),
-            Buffer.from('IDAT'),
-            idatData,
-            Buffer.createUInt32BE(idatCRC),
-            Buffer.alloc(4),
-            Buffer.from('IEND'),
-            chsum
-          ])
-          callback(null, result)
-        })
-      })
-      continue
+interface PngHeaderData {
+  width: number
+  height: number
+  bitDeph: number
+  colorType: number
+  comressMethod: number
+  filterMethod: number
+  interlaceMethod: number
+}
+
+type CallbackType<Ret> = (err: Error | null, data?: Ret) => void
+type A = (cgbi: Buffer, cb: CallbackType<Buffer>) => void
+type B = (cgbi: Buffer) => Promise<Buffer>
+
+export const convert: A | B = (cgbi: Buffer, callback?: CallbackType<Buffer>) => {
+  const promise = new Promise<Buffer>(async (resolve, reject) => {
+    if (cgbi.slice(0, 8).compare(PNG_HEADER)) {
+      return reject(new Error('not png'))
     }
-    result = Buffer.concat([
-      result,
-      Buffer.createUInt32BE(len),
-      Buffer.from(type),
-      data,
-      chsum
-    ])
+    const reader = new Reader(cgbi)
+    reader.offset = 8
+    const result = [PNG_HEADER]
+    let iscgbi, header: PngHeaderData | undefined
+    const idat = [] as Buffer[]
+
+    while (reader.offset < cgbi.length) {
+      const len = reader.read(4).readUInt32BE()
+      const type = reader.read(4).toString()
+      const data = reader.read(len)
+      const chsum = reader.read(4)
+
+      switch (type) {
+        case 'CgBI':
+          iscgbi = true
+          break
+
+        case 'iDOT':
+          break
+
+        case 'IDAT':
+          idat.push(data)
+          break
+
+        case 'IEND':
+          const rawdata = Buffer.concat(idat)
+          if (!header) {
+            return reject(new Error('error while reading png header'))
+          }
+          try {
+            const newIdat = await defaultTransform(rawdata, header.width, header.height)
+            let idatCRC = crc32('IDAT')
+            idatCRC = crc32(newIdat, idatCRC)
+            idatCRC = (idatCRC + 0x100000000) % 0x100000000
+            result.push(
+              Buffer.createUInt32BE(newIdat.length),
+              Buffer.from('IDAT'),
+              newIdat,
+              Buffer.createUInt32BE(idatCRC),
+              Buffer.alloc(4),
+              Buffer.from('IEND'),
+              chsum
+            )
+
+            return resolve(Buffer.concat(result))
+          } catch (err) {
+            return reject(err)
+          }
+
+        case 'IHDR':
+          if (!iscgbi) return resolve(cgbi)
+          header = {
+            width: data.readUInt32BE(),
+            height: data.readUInt32BE(4),
+            bitDeph: data.readUInt8(8),
+            colorType: data.readUInt8(9),
+            comressMethod: data.readUInt8(10),
+            filterMethod: data.readUInt8(11),
+            interlaceMethod: data.readUInt8(12)
+          }
+
+        default:
+          result.push(Buffer.createUInt32BE(len), Buffer.from(type), data, chsum)
+          break
+      }
+    }
+  })
+
+  if (callback && typeof callback === 'function') {
+    promise.then(res => callback(null, res)).catch(err => callback(err))
+  } else {
+    return promise
   }
+}
+
+async function defaultTransform(
+  image: Buffer,
+  width: number,
+  height: number
+): Promise<Buffer> {
+  const uncompressed = await asyncInflateRaw(image)
+  let newData = Buffer.alloc(uncompressed.length)
+  let i = 0
+  for (let j = 0; j < height; ++j) {
+    newData[i] = uncompressed[i]
+    i++
+    for (let k = 0; k < width; ++k) {
+      newData[i + 0] = uncompressed[i + 2]
+      newData[i + 1] = uncompressed[i + 1]
+      newData[i + 2] = uncompressed[i + 0]
+      newData[i + 3] = uncompressed[i + 3]
+      i += 4
+    }
+  }
+  return asyncDeflate(newData)
 }
